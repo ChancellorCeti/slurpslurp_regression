@@ -1,13 +1,16 @@
+use crate::matrix::{self, gaussian_elim, Matrix};
 use ensimismarse::differentiation::differentiate;
+use ensimismarse::impls;
 use ensimismarse::structs::{Expr, Operation, TrigOp};
 use std::collections::HashMap;
-struct Regression<T>
+
+pub struct Regression<T>
 where
     T: Clone,
 {
-    independent_variables: Vec<char>,
-    undetermined_coefficients: Vec<char>,
-    equation: Expr<T>,
+    pub independent_variables: Vec<char>,
+    pub undetermined_coefficients: Vec<char>,
+    pub equation: Expr<T>,
 }
 
 fn fill_in_data<T: std::clone::Clone>(eq: &Expr<T>, data: &Vec<(char, T)>) -> Expr<T> {
@@ -20,7 +23,7 @@ fn fill_in_data<T: std::clone::Clone>(eq: &Expr<T>, data: &Vec<(char, T)>) -> Ex
                 }
             }
         }
-        Expr::Constant(x) => {
+        Expr::Constant(_x) => {
             return eq.clone();
         }
         Expr::Operation(x) => match *x {
@@ -92,19 +95,40 @@ fn fill_in_data<T: std::clone::Clone>(eq: &Expr<T>, data: &Vec<(char, T)>) -> Ex
                     &x, &data,
                 )))));
             }
-            Operation::Hyperbolic(x) => {}
+            Operation::Hyperbolic(_x) => {}
             Operation::Sqrt(x) => {
                 return Expr::Operation(Box::new(Operation::Sqrt(fill_in_data(&x, &data))))
             }
-            Operation::NthRoot(x) => {}
+            Operation::NthRoot(_x) => {}
         },
     }
     return res;
 }
 
 // dvv is dependent_variables_values and y is vector of dependent variable datapoints
-impl<T: Clone + std::convert::From<f64> + std::ops::Mul<Output = T>> Regression<T> {
-    pub fn run(&self, ivv: HashMap<char, Vec<T>>, y: Vec<T>) {
+impl<
+        T: Clone
+            + std::convert::From<f64>
+            + std::ops::Mul<Output = T>
+            + std::ops::Add<Output = T>
+            + std::ops::Div<Output = T>
+            + std::ops::Sub<Output = T>
+            + std::cmp::PartialEq
+            + std::fmt::Debug
+            + From<f64>
+            + Into<f64>
+            + std::ops::SubAssign,
+    > Regression<T>
+where
+    f64: From<T>,
+{
+    pub fn run(
+        &self,
+        ivv: HashMap<char, Vec<T>>,
+        y: Vec<T>,
+        guess: &mut HashMap<char, T>,
+        iterations: usize,
+    ) {
         let model_eq = &self.equation.clone();
         for datapoints_i in ivv.values() {
             if datapoints_i.len() != y.len() {
@@ -137,5 +161,44 @@ impl<T: Clone + std::convert::From<f64> + std::ops::Mul<Output = T>> Regression<
             ));
         }
         // STEP TWO: SOLVE FOR ZEROS OF PARTIAL DERIVATIVES
+        // How? Ez -- consider the partial derivatives condensed into one vector function \vec{f}
+        // then we can calculate the jacobian of \vec{f}
+        // then find the inverse of the Jacobian
+        // note that f(\vec{x}+\vec{\delta}) \approx f(\vec{t})+J(\vec{x})\vec{\delta} per
+        // first-order Taylor series expansion
+        // if we equate f(\vec{x}+\vec{delta})=0
+        //                  we can use f(\vec{t})=-J(\vec{x})\vec{\delta}
+        // J^{-1}(\vec{s})f(\vec{t})=\vec{\delta}
+        // => taking the step
+        // \vec{x}+\vec{\delta} = \vec{x}-J^{-1}(\vec{x})f(\vec{t}) will get us closer to the zero
+        // of f(\vec{x})
+
+        // TO-DO AFTER THIS CAVEMAN APPROACH -- GAUSS-NEWTON ALGORITHM !!!
+        // ALSO TO-DO ALGO THAT GETS BETTER FIRST GUESS, AND TRUST REGION THINGY`
+        let mut system_matrix: Matrix<T> = Matrix {
+            data: vec![
+                vec![T::from(0.0); partial_derivatives.len() + 1];
+                partial_derivatives.len()
+            ],
+            rows: partial_derivatives.len(),
+            columns: partial_derivatives.len() + 1,
+        };
+        for _s in 0..iterations {
+            for i in 0..partial_derivatives.len() {
+                system_matrix.data[i][partial_derivatives.len()] =
+                    T::from(-1.0) * partial_derivatives[i].1.evaluate_expr(&guess);
+                for j in 0..partial_derivatives.len() {
+                    system_matrix.data[i][j] = differentiate(
+                        partial_derivatives[i].1.clone(),
+                        self.undetermined_coefficients[j],
+                    )
+                    .evaluate_expr(&guess);
+                }
+            }
+            let new_guess = gaussian_elim(system_matrix.clone());
+            for i in 0..new_guess.len() {
+                guess.insert(self.undetermined_coefficients[i], new_guess[i].clone());
+            }
+        }
     }
 }
