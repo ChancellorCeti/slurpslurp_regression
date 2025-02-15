@@ -193,12 +193,24 @@ where
                         self.undetermined_coefficients[j],
                     )
                     .evaluate_expr(&guess);
+                    println!(
+                        "{:?} {:?} {:?}",
+                        j, self.undetermined_coefficients[j], system_matrix.data[i][j]
+                    );
                 }
             }
             let new_guess = gaussian_elim(system_matrix.clone());
+            println!("{:?}", new_guess);
             for i in 0..new_guess.len() {
                 guess.insert(self.undetermined_coefficients[i], new_guess[i].clone());
             }
         }
+        println!(
+            "{:#?}",
+            differentiate(
+                partial_derivatives[0].1.clone(),
+                self.undetermined_coefficients[0],
+            )
+        );
     }
 }

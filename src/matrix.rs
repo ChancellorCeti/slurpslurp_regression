@@ -23,6 +23,7 @@ pub fn gaussian_elim<
         + std::ops::Mul
         + std::ops::SubAssign<<T as std::ops::Mul>::Output>
         + From<f64>
+        + std::fmt::Debug
         + std::ops::Mul,
 >(
     equations: Matrix<T>,
