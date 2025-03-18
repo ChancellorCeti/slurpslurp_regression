@@ -1,6 +1,5 @@
-use differentiation::{differentiate, numerical_differentiate};
-use ensimismarse::{differentiation, impls, structs};
-use structs::{Expr, HyperbolicOp, Operation, TrigOp};
+use ensimismarse::structs;
+use structs::{Expr, Operation};
 use std::collections::HashMap;
 mod matrix;
 mod regression;
@@ -31,6 +30,6 @@ fn main() {
     let y:Vec<f64> = vec![2.0,2.0,0.0,-36.0];
     ivv.insert('x',vec![1.0,2.0,3.0,4.0]);
     ivv.insert('y',vec![1.0,2.0,3.01,7.0]);
-    reg1.run(ivv, y, &mut guess, 5);
+    reg1.run(ivv, y, &mut guess, 50);
     println!("{:?}",guess);
 }

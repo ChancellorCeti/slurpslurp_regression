@@ -1,6 +1,5 @@
-use crate::matrix::{self, gaussian_elim, Matrix};
+use crate::matrix::{gaussian_elim, Matrix};
 use ensimismarse::differentiation::differentiate;
-use ensimismarse::impls;
 use ensimismarse::structs::{Expr, Operation, TrigOp};
 use std::collections::HashMap;
 
@@ -193,24 +192,39 @@ where
                         self.undetermined_coefficients[j],
                     )
                     .evaluate_expr(&guess);
-                    println!(
+                    /*println!(
                         "{:?} {:?} {:?}",
                         j, self.undetermined_coefficients[j], system_matrix.data[i][j]
-                    );
+                    );*/
                 }
             }
             let new_guess = gaussian_elim(system_matrix.clone());
-            println!("{:?}", new_guess);
+            //println!("{:?}", new_guess);
             for i in 0..new_guess.len() {
-                guess.insert(self.undetermined_coefficients[i], new_guess[i].clone());
+                let current_guess_opt = guess.get(&self.undetermined_coefficients[i]);
+                let current_guess;
+                match current_guess_opt {
+                    Some(x) => current_guess = x,
+                    None => panic!(),
+                };
+                guess.insert(
+                    self.undetermined_coefficients[i],
+                    new_guess[i].clone() + current_guess.clone(),
+                );
             }
         }
         println!(
-            "{:#?}",
-            differentiate(
-                partial_derivatives[0].1.clone(),
-                self.undetermined_coefficients[0],
-            )
+            "Final MSE is {:?}",
+            mse.evaluate_expr(&guess) / (T::from(y.len() as f64))
         );
+        /*let mut pl = differentiate(
+            partial_derivatives[0].1.clone(),
+            self.undetermined_coefficients[0],
+        );
+        pl.simplify();
+        println!(
+            "{:#?} is w/ {}",
+            pl.expr_to_string(),partial_derivatives[0].0.clone()
+        );*/
     }
 }
